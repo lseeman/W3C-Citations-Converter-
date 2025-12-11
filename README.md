@@ -57,7 +57,22 @@ key: {
 
 
 
-note if the key is missing should make it to follow the COGA protocal. (In theory) IE:  
+Note if the key is missing should make it to follow the COGA protocal. (In theory) IE:  
 1 *If it is a citation (academic paper) *use the database key followed by the first author and the number the author occurred in the database. The result would look like: [RM-Smith1] (RM is the reference for mental health literary review database, smith is the primary author, and 1 is this is the first occurrence).
 2. *For laws and standards *use the accepted short name in the field and record it as a key in our spreadsheet/ database. For example, WCAG1.0 or Section508. 
 3. *If it is  another resource (blog, fact sheet etc)  *use the database key followed by the initials of the site/organisation name (main site, not subsites) and the number this occurred in our spreadsheet. The result would look like: [RC-WHO1] (RC is the Reference for Coga sources and literary review spreadsheet , WHO are the initials of the site, such as the world health organization, and 1 is this is the first occurrence in our spreadsheet. )
+
+
+## What to do in your document?
+1.	Inline - Add the key in double square brackets. For example [[COGA1]]
+2. Reference the biblio file in your respecConfig in the header. 
+IE: 
+localBiblio: biblio,
+
+You can also have 	<script src="../common/biblio.js" class="remove"></script>
+
+This will add the reference in the reference section and the links, when the respec is run.
+
+Enjoy
+
+Lisa
