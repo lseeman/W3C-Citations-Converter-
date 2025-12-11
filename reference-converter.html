@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Convert Citations and References to W3C JSON format </title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  textarea { width: 100%; height: 150px; }
+  pre { background: #f0f0f0; padding: 10px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h2>Reference Converter</h2>
+Convert Citations and References to W3C JSON format
+
+<label for="inputType">Form of input:</label>
+<select id="inputType">
+  <option value="w3c">full citation with the order of the w3c</option>
+  <option value="standard">standard citation</option>
+  <option value="other">other</option>
+  <option value="laws">laws and standards</option>
+</select>
+
+<br /><br />
+<label for="rawInput">Input:</label>
+<textarea id="rawInput" placeholder="Enter references, one per line..."></textarea>
+<br /><br />
+<button id="convertBtn">Convert to JSON</button>
+
+<h3>Output JSON</h3>
+<pre id="output"></pre>
+
+<script>
+// Utility: trim and clean strings
+function clean(str) {
+  return str ? str.trim() : '';
+}
+
+// Utility: split authors like "A.J. Rotondi, M.R. Spring" → array
+function splitAuthors(authStr) {
+  if (!authStr) return [];
+  return authStr.split(/[,;]+/).map(a => clean(a)).filter(a => a);
+}
+
+// Generate key when not provided
+function generateKey(type, title, authors, site, count = 1) {
+  if (type === 'academic') {
+    const primary = authors.length ? authors[0].split(' ').pop().toLowerCase() : 'unknown';
+    return `RM-${primary}${count}`;
+  }
+  if (type === 'law') {
+    return title.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 12);
+  }
+  if (type === 'other') {
+    const initials = site ? site.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() : 'SRC';
+    return `RC-${initials}${count}`;
+  }
+  return `KEY${count}`;
+}
+
+// Parse W3C-type citation
+function parseW3C(line) {
+  const parts = line.split('URL:');
+  const url = clean(parts[1] || '');
+  const beforeUrl = parts[0];
+
+  const titleAndRest = beforeUrl.split('.');
+  const title = clean(titleAndRest[0]);
+
+  const authorsPart = clean(titleAndRest[1] || '');
+  const authors = splitAuthors(authorsPart);
+
+  let journalPart = clean(titleAndRest.slice(2).join('.'));
+  let journal = '', date = '';
+  const journalMatch = journalPart.match(/(.+?),\s*(\d{4})/);
+  if (journalMatch) {
+    journal = clean(journalMatch[1]);
+    date = clean(journalMatch[2]);
+  }
+
+  return {
+    title,
+    authors,
+    date,
+    publisher: journal,
+    href: url,
+    status: 'academic paper'
+  };
+}
+
+// Parse standard citation
+function parseStandard(line) {
+  const parts = line.split('URL:');
+  const url = clean(parts[1] || '');
+  const beforeUrl = parts[0];
+
+  const firstDot = beforeUrl.indexOf('.');
+  const authorsPart = clean(beforeUrl.substring(0, firstDot));
+  const authors = splitAuthors(authorsPart);
+
+  const rest = beforeUrl.substring(firstDot + 1);
+  const titleEnd = rest.indexOf('.');
+  const title = clean(rest.substring(0, titleEnd));
+
+  const journalPart = clean(rest.substring(titleEnd + 1));
+  let journal = '', year = '';
+  const yearMatch = journalPart.match(/(\d{4})/);
+  if (yearMatch) year = yearMatch[1];
+  journal = journalPart.replace(year, '').replace(/[,\.]/g, '').trim();
+
+  return {
+    title,
+    authors,
+    date: year,
+    publisher: journal,
+    href: url,
+    status: 'academic paper'
+  };
+}
+
+// Parse Other & Laws
+function parseTableLike(line) {
+  // Laws & Standards format:
+  // key 	 Name 	 Link 	 Site 	 Authors 	 Date
+  const parts = line.split(/	+/).map(clean);
+  return {
+    providedKey: parts[0] || '',
+    title: parts[1] || '',
+    href: parts[2] || '',
+    publisher: parts[3] || '',
+    authors: splitAuthors(parts[4] || ''),
+    date: parts[5] || ''
+  };
+}
+
+// Main button
+const btn = document.getElementById('convertBtn');
+btn.addEventListener('click', () => {
+  const type = document.getElementById('inputType').value;
+  const lines = document.getElementById('rawInput').value.split(/\n+/).map(l => clean(l)).filter(l => l);
+
+  const result = {};
+  let count = 1;
+
+  lines.forEach(line => {
+    let ref;
+    if (type === 'w3c') ref = parseW3C(line);
+    else if (type === 'standard') ref = parseStandard(line);
+    else ref = parseTableLike(line);
+
+    let keyType = (type === 'laws') ? 'law' : (type === 'other' ? 'other' : 'academic');
+    const key = (ref.providedKey && type === 'laws') ? ref.providedKey : generateKey(keyType, ref.title, ref.authors, ref.publisher, count++)
+
+    result[key] = {
+      title: ref.title || '',
+      date: ref.date || '',
+      authors: ref.authors || [],
+      etAl: (ref.authors && ref.authors.length > 3) ? 'true' : 'false',
+      publisher: ref.publisher || '',
+      href: ref.href || '',
+      status: (type === 'laws') ? 'standard' : (type === 'other' ? 'other resource' : 'academic paper')
+    };
+  });
+
+  document.getElementById('output').textContent = JSON.stringify(result, null, 2);
+});
+</script>
+
+</body>
+</html>
